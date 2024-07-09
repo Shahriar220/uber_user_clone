@@ -1,5 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:uber_user_app/authentication/signup_screen.dart';
+import 'package:uber_user_app/global/global_var.dart';
+
+import '../methods/common.dart';
+import '../pages/home_page.dart';
+import '../widgets/loading_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,6 +18,70 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   TextEditingController emailTextEditingController = TextEditingController();
   TextEditingController passwordTextEditingController = TextEditingController();
+
+  CommonMethods methods = CommonMethods();
+
+  checkIfNetworkIsAvailable() {
+    methods.checkConnectivity(context);
+    signInFormValidation();
+  }
+
+  signInFormValidation() {
+    if (!emailTextEditingController.text.contains("@")) {
+      methods.displaySnackBar("enter a valid email", context);
+    } else if (passwordTextEditingController.text.trim().length < 5) {
+      methods.displaySnackBar(
+          "password must be more that 5 characters", context);
+    } else {
+      logInUser();
+    }
+  }
+
+  logInUser() async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) =>
+            LoadingDialog(messageText: "Login to Your Account"));
+
+    final User? userFirebase = (await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+      email: emailTextEditingController.text.trim(),
+      password: passwordTextEditingController.text.trim(),
+    )
+            .catchError((errorMessage) {
+      Navigator.pop(context);
+      methods.displaySnackBar(errorMessage, context);
+    }))
+        .user;
+
+    if (!context.mounted) return;
+    Navigator.pop(context);
+
+    if (userFirebase != null) {
+      DatabaseReference usersRef = FirebaseDatabase.instance
+          .ref()
+          .child("users")
+          .child(userFirebase.uid);
+
+      usersRef.once().then((snap) {
+        if (snap.snapshot.value != null) {
+          if ((snap.snapshot.value as Map)["blockStatus"] == "no") {
+            userName = (snap.snapshot.value as Map)["name"];
+            Navigator.push(
+                context, MaterialPageRoute(builder: (c) => const HomePage()));
+          } else {
+            FirebaseAuth.instance.signOut();
+            methods.displaySnackBar(
+                "You are not authorised, contact support", context);
+          }
+        } else {
+          FirebaseAuth.instance.signOut();
+          methods.displaySnackBar("No User Found", context);
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +130,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 22,
                       ),
                       ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          checkIfNetworkIsAvailable();
+                        },
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.purple,
                             padding: const EdgeInsets.symmetric(
@@ -73,7 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               TextButton(
                 onPressed: () {
-                  print("Button Clicked");
                   Navigator.push(context,
                       MaterialPageRoute(builder: (c) => const SignUpScreen()));
                 },
