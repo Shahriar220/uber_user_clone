@@ -1,2 +1,9 @@
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 String userName = "";
-String googleMapKay = "AIzaSyCqWolz3UkTu44xWaEA_vnAd3sH6hZn3lI";
+String googleMapKay = "AIzaSyCC1PBvMcq3Xj3hQF-WiPwuHqFqGFWrP1c";
+
+const CameraPosition googlePlexInitialPosition = CameraPosition(
+  target: LatLng(37.42796133580664, -122.085749655962),
+  zoom: 14.4746,
+);
